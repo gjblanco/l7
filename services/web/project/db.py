@@ -49,6 +49,22 @@ def create_all():
     _db.commit()
     print("All tables created")
 
+def list_files():
+    command = """
+       SELECT file_id, filename, min(last_upload_time) as upload_time
+       FROM uploaded_data
+       GROUP BY file_id, filename
+       ORDER BY upload_time DESC
+       LIMIT 5 
+    """
+    cur = _db.cursor(cursor_factory = psycopg2.extras.DictCursor)
+    cur.execute(command)
+    rows = cur.fetchall()
+
+    ret = []
+    for row in rows:
+        ret.append({'fileId': row['file_id'], 'filename': row['filename'], 'uploadTime': row['upload_time']})
+    return ret
 
 def read_file_linebyline(fileid):
     cur = _db.cursor(cursor_factory = psycopg2.extras.DictCursor)

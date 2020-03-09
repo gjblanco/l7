@@ -1,9 +1,9 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 import io
 
-from .db import initdb, drop_all, save_file_piece, read_file_linebyline
+from .db import initdb, drop_all, save_file_piece, read_file_linebyline, list_files
 from .datahandle import count_by_leading_digit
 
 app = Flask(__name__)
@@ -45,7 +45,21 @@ def processdata(fileid):
             break
     return jsonify(ans)
 
+@app.route('/list-files', methods=['GET'])
+def listfiles():
+    return jsonify(list_files())
+
+statics_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../frontend/dist')
+print("staticsdier", statics_dir) 
+@app.route('/<path:path>', methods=['GET'])
+def serve_file(path):
+    if not os.path.isfile(os.path.join(statics_dir, path)):
+        return "Not Found", 404
+    print('RETURN SENDFROMDIR', statics_dir, path)
+    return send_from_directory(statics_dir, path)
+
 
 @app.route("/")
-def hello_world():
-    return jsonify(hello="world")
+def root():
+    print('ROOT', statics_dir, 'index.html');
+    return send_from_directory(statics_dir, 'index.html')

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <title>Document</title>
+    <style>
+        canvas {
+            max-height: 70vh;
+        }
+        .graphed {
+            text-decoration: underline;
+        }
+        ul#past-files {
+            list-style: none;
+        }
+        li {
+            display: block;
+            margin: 5px;
+            font-size: 12px;
+        }
+        #spinner {
+            position: absolute;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner-border d-none" id="spinner" role="status">
+          <span class="sr-only">Loading...</span>
+        </div>
+        <div class="row">
+            <div class="col-sm-4">
+                <input type="file" name="dbi_import_file" class="d-none" id="upload-input"/><br><br>
+                <span class="btn btn-primary" id="upload">Upload File</span>
+                <span class="btn btn-success d-none" id="ok">OK</span>
+            </div>
+            <div class="col-sm-8">
+                <ul id="past-files" class="container"></ul>
+            </div>
+            
+            
+        </div>
+        <div class="row">
+            <div class="col-sm-12">
+                <canvas id="myChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+
+    <script>
+        init();
+
+        function init() {
+            spincount = 0;
+            $('#past-files').delegate('li', 'click', function() {
+            graphFile(Number($(this).attr('data-fileid')))
+            $('#past-files li').removeClass('graphed')
+            $(this).toggleClass('graphed');   
+            });
+            listFiles();
+            paintGraph();
+        }
+        var spincount;
+
+        function spin() {
+            console.log('SPIN', spincount)
+            spincount++;
+            $('#spinner').removeClass('d-none');
+        }
+        function stopSpinning() {
+            console.log('stopSPIN', spincount)
+
+            spincount--;
+            if(spincount === 0)
+                $('#spinner').addClass('d-none');
+        }
+        function listFiles() {
+            spin();
+            $.ajax({
+                url: '/list-files',
+                type: 'GET',
+                success: function(data) {
+                    console.log('LISTFILS', data);
+                    stopSpinning();
+                    $('#past-files').html('')
+                    for(var i = 0; i < data.length; i++) {
+                        var txt = data[i].filename;
+                        var id = data[i].fileId
+                        $('#past-files').append('<li class="col-sm-2" data-fileid="' + id + '"><a>' + txt + "</a></li>")
+                    }
+                }
+            })
+        }
+        /// upload file code
+        $("#upload").click(function(){
+            $("#upload-input").click();
+        })
+        $("#upload-input").change(function(event){
+            var filename = event.target.value;
+            $('#upload').html(filename.slice(filename.lastIndexOf('\\') + 1));
+            $('#ok').removeClass('d-none');
+        })
+        $('#ok').click(function() {
+            event.preventDefault();
+
+            reader = new FileReader();
+            file = document.querySelector('#upload-input').files[0];
+
+            var filename = file.name;
+            var fileId = undefined;
+
+            processFileByChunk(file, function(chunkdata, cb) {
+                var data = {
+                    filename: filename,
+                    contents: chunkdata.contents,
+                    isLastChunk: chunkdata.islast,
+                }
+                if(fileId !== undefined) {
+                    data.fileId = fileId;
+                }
+                $.ajax({
+                    type: "POST",
+                    //the url where you want to sent the userName and password to
+                    url: '/uploaddata',
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    //json object to sent to the authentication url
+                    data: JSON.stringify(data),
+                    success: function (response) {
+                        fileId = response.fileId;
+                        console.log('RESPONSE', fileId, response);
+                        cb();
+                        if(chunkdata.islast) {
+                            $('#upload').html('Upload File');
+                            $('#ok').addClass('d-none');
+                            listFiles()
+                            graphFile(fileId);
+                        }
+                    }
+                });
+            });
+        });
+
+        function processFileByChunk(file, processChunk) {
+            var reader = new FileReader();
+            
+            var CHUNK_SIZE = (1 << 17);
+
+            nextChunk();
+
+            function nextChunk(beg = 0, end = CHUNK_SIZE) {
+                var fr = new FileReader();
+                fr.readAsText(file.slice(beg, end));
+                fr.onload = function(e) {
+                    if(e.target.error) {
+                        console.log('ERROR', e.target.error);
+                    }
+                    var contents = e.target.result;
+                    var islast = beg + contents.length >= file.size;
+                    processChunk({contents: contents, islast: islast}, function(){
+                        setTimeout(function(){
+                            if(!islast) {
+                                nextChunk(beg + contents.length, beg + contents.length + CHUNK_SIZE)
+                            }
+                        }, 0)
+                    });
+                    
+                }
+            }
+        }
+
+        function graphFile(fileId) {
+            spin();
+            $.ajax({
+                url: '/processdata/' + fileId,
+                type: 'GET',
+                success: function(data) {
+                    paintGraph(data);
+                    stopSpinning();
+                }
+            })
+        }
+
+    function paintGraph(data = null) {
+        var ctx = document.getElementById('myChart').getContext('2d');
+
+        var labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        var sum = 0;
+        if(data !== null) sum = labels.reduce(function(a,x){return Number(data[x]) + Number(a)}, 0);
+        console.log('SUM', sum)
+
+        var config = {
+            // The type of chart we want to create
+            type: 'bar',
+
+            // The data for our dataset
+            data: {
+                labels: labels,
+                datasets: [
+                {
+                    label: 'Benford\'s Prediction',
+                    backgroundColor: 'rgb(255, 99, 132)',
+                    borderColor: 'rgb(255, 99, 132)',
+                    data: labels.map(label => Math.log10((Number(label) + 1) / Number(label) ) * 100),
+                    type: 'bar'
+
+                }]
+            },
+
+            // Configuration options go here
+            options: {}
+        };
+
+        if(data !== null) {
+            config.data.datasets.unshift({
+                label: 'File Dataset',
+                backgroundColor: 'rgb(99, 255, 132)',
+                borderColor: 'rgb(99, 255, 132)',
+                data: labels.map(label => data[Number(label)] / sum * 100),
+                type: 'bar',
+            })
+        }
+
+        console.log(config)
+        var chart = new Chart(ctx, config);
+    }
+    
+
+    </script>
+</body>
+</html>

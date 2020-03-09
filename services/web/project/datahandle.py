@@ -12,7 +12,7 @@ def leading_digit(word):
         if number < 0:
             number = -number
         number = int(number)
-        while number > 10:
+        while number >= 10:
             number = number // 10
         return number
         
