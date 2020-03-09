@@ -89,12 +89,10 @@ def read_file_linebyline(fileid):
         chunks.extend(newchunks)
         current_index = 0
         while(current_index < len(chunks) - 1):
-            print('YIELDLINE', chunks[current_index], type(chunks[current_index]))
             yield chunks[current_index]
             current_index += 1
         chunks = [chunks[current_index]]
     if(len(chunks[0].strip()) > 0):
-        print('LAST YIELD', chunks[0], type(chunks[0]))
         yield chunks[0]
         
         
