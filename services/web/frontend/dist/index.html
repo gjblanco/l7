@@ -140,6 +140,7 @@
                         cb();
                         if(chunkdata.islast) {
                             $('#upload').html('Upload File');
+                            $('#upload-input').val('')
                             $('#ok').addClass('d-none');
                             listFiles()
                             graphFile(fileId);

@@ -21,7 +21,6 @@ def uploaddata():
         if contents is None:
             return "contents cannot be empty", 400
 
-        print("islastchunk", is_last_chunk)
         result = save_file_piece(filename, contents, None, is_last_chunk, file_id)
 #        save_file(file)
 #        for delimiter in DELIMITERS:
@@ -33,13 +32,10 @@ def uploaddata():
 
 @app.route('/processdata/<int:fileid>', methods=["GET"])
 def processdata(fileid):
-    print("THEPARAM", fileid)
     
     DELIMITERS = [',', '\t', '|']
     for delimiter in DELIMITERS:
         stream = read_file_linebyline(fileid)
-        for s in stream:
-            print('SS', s)
         ans = count_by_leading_digit(read_file_linebyline(fileid), delimiter)
         if ans != None:
             break

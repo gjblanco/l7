@@ -29,7 +29,6 @@ def count_by_leading_digit(stream, delimiter):
     linecount = 0
 
     for line in reader:
-        print('LINELINE', line)
         linecount += 1
         for column, value in line.items():
             leaddig = leading_digit(value)
@@ -58,5 +57,4 @@ def count_by_leading_digit(stream, delimiter):
 
     if numcolumnscount == 0 or numcolumnscount >= 2:
         return None
-    print('THE THING', table[numcolumn])
     return {column: value for column, value in table[numcolumn].items() if column != 'NaN'}
